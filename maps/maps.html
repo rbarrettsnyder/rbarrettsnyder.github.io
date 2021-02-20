@@ -1,0 +1,558 @@
+<html>
+
+<script src="https://cdn.apple-mapkit.com/mk/5.x.x/mapkit.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script src="https://d3js.org/d3-voronoi.v1.min.js"></script>
+<script src="http://vrd.github.io/js-intersect/solution.js"></script>
+
+<script>
+	var voronoi = d3.voronoi();
+</script>
+
+<script src="GoogleRestaurantLocAction.json"></script>
+<head>
+
+  <style>
+    html, body, #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+	
+      #containerDiv {
+        background-color: white;
+        padding: 3px;
+        text-align: center;
+        min-width: 260px;
+      }
+
+      #title {
+        font-size: 14pt;
+      }
+ 
+  </style>
+  
+  <link rel="stylesheet" href="https://js.arcgis.com/4.16/esri/themes/light/main.css">
+  <script src="https://js.arcgis.com/4.16/"></script>
+  
+  <script>
+  var USA = [{"x":-123.5698242187407,"y":48.90344559460173},{"x":-95.26904296874822,"y":49.13400405518611},{"x":-89.42431640624979,"y":47.99992837747946},{"x":-92.368652343749,"y":46.53892148692975},{"x":-90.96240234374937,"y":46.99045329211187},{"x":-88.06201171875014,"y":47.527298734146676},{"x":-86.69970703125048,"y":46.569141368627626},{"x":-84.72216796875102,"y":46.629530650382954},{"x":-83.93115234375124,"y":46.02260802125206},{"x":-84.744140625001,"y":45.8085938321199},{"x":-86.20532226562561,"y":45.94626912974979},{"x":-87.7434082031252,"y":43.58326450896005},{"x":-87.32592773437533,"y":41.66766849655838},{"x":-86.66674804687548,"y":41.978776363834605},{"x":-86.2712402343756,"y":42.79024976118067},{"x":-86.55688476562553,"y":43.90075084614986},{"x":-86.15039062500063,"y":44.80414155888781},{"x":-84.99682617187592,"y":45.739628261283606},{"x":-84.52441406250105,"y":45.7626262611771},{"x":-83.2500000000014,"y":45.08407965042951},{"x":-83.2500000000014,"y":44.38952638734224},{"x":-83.64550781250131,"y":44.00357134819228},{"x":-83.87622070312624,"y":43.78189077678178},{"x":-83.6674804687513,"y":43.615088902026756},{"x":-82.83251953125149,"y":44.090434360838564},{"x":-82.4479980468766,"y":43.11991979709288},{"x":-82.67871093750155,"y":42.42638480249897},{"x":-83.12915039062644,"y":41.921580615220414},{"x":-83.29394531250139,"y":41.75788147802831},{"x":-82.4370117187516,"y":41.50332061035059},{"x":-78.92138671875254,"y":42.830547969608105},{"x":-79.1520996093775,"y":43.29608763871999},{"x":-74.52685546875372,"y":45.00645599818539},{"x":-71.45068359375455,"y":45.068563346372926},{"x":-69.12158203125519,"y":47.497616757839914},{"x":-67.89111328125551,"y":47.55696392317589},{"x":-66.7924804687558,"y":44.850892703917204},{"x":-80.85498046875205,"y":31.366405794948463},{"x":-80.10791015625226,"y":25.37739342199482},{"x":-82.04150390625176,"y":24.260598020940062},{"x":-81.4262695312519,"y":25.417091679704733},{"x":-83.27197265625142,"y":28.201422693856145},{"x":-83.18408203125145,"y":29.31860011544563},{"x":-85.20556640625091,"y":29.739207014307333},{"x":-89.7319335937497,"y":29.471750359554324},{"x":-94.39013671874847,"y":29.58646149388959},{"x":-96.93896484374778,"y":27.891145454176026},{"x":-97.07080078124775,"y":25.69461280306779},{"x":-99.70751953124706,"y":27.189770875001425},{"x":-102.30029296874636,"y":29.81549271437024},{"x":-103.09130859374615,"y":29.050033611836245},{"x":-107.66162109374493,"y":31.778249992966163},{"x":-108.67236328124467,"y":31.36640579494849},{"x":-117.35156249999288,"y":32.503842137803026},{"x":-122.8447265624914,"y":37.64347613562201},{"x":-124.382812499991,"y":41.5691099634157},{"x":-124.82226562499088,"y":48.07338899171392}];
+  </script>
+  
+  <script>  
+  "use strict";
+	function generateVornoi(points, convexhull) {
+		voronoi.x(function(d) { return d.geometry.coordinates[0] });
+		voronoi.y(function(d) { return d.geometry.coordinates[1] });
+		var maxx = points.map(a=>a.geometry.coordinates[0]).reduce( ( max, cur ) => Math.max( max, cur ), -9999);
+		var maxy = points.map(a=>a.geometry.coordinates[1]).reduce( ( max, cur ) => Math.max( max, cur ), -9999);
+		var minx = points.map(a=>a.geometry.coordinates[0]).reduce( ( min, cur ) => Math.min( min, cur ), 9999);
+		var miny = points.map(a=>a.geometry.coordinates[1]).reduce( ( min, cur ) => Math.min( min, cur ), 9999);
+		var data = points; // .map(x=>[x.geometry.coordinates[0],x.geometry.coordinates[1]]);
+		
+		voronoi.extent( [[minx,miny],[maxx,maxy]]);
+		
+		var polygons = voronoi.polygons(points);
+
+		
+		var clippedpolys = [];
+		
+		polygons.forEach( function(poly) {
+			var newpoly = [];
+			poly.forEach( point=> newpoly.push({x: point[0], y: point[1]}));
+			var clipped = intersect (newpoly, USA);
+			if (clipped.length > 0) {
+				clipped = clipped[0].map(x=>[x.x,x.y]);
+				clipped.data = poly.data;
+				clippedpolys.push(clipped);
+			}	
+		});
+		
+		return clippedpolys;
+	}
+	
+	function getConvexHull(points) {
+		var i, maxx, miny;
+		var minP;
+		
+		var testpoints = [
+			{geometry:{coordinates:[0,0]}},
+			{geometry:{coordinates:[1,1]}},
+			{geometry:{coordinates:[2,1]}},
+			{geometry:{coordinates:[3,1]}},
+			{geometry:{coordinates:[4,1]}},
+			{geometry:{coordinates:[5,1]}},
+
+		];
+		
+		// isLeft( {geometry:{coordinates:[0,0]}},{geometry:{coordinates:[1,1]}},	{geometry:{coordinates:[2,1]}});
+		
+		points.sort((a,b)=> a.geometry.coordinates[1] == b.geometry.coordinates[1] ? b.geometry.coordinates[0] - a.geometry.coordinates[0] : a.geometry.coordinates[1] - b.geometry.coordinates[1]);
+		minP = points.shift();
+		points.sort((a,b)=>isLeft(minP,b,a));
+		points.unshift(minP);
+		
+		var hull = [];
+
+		
+		hull.unshift(points[0]);
+		hull.unshift(points[1]);
+		
+		for (i=2; i<  points.length; ) {
+			if (isLeft(hull[1], hull[0], points[i]) > 0) {
+				hull.unshift(points[i]);
+				i++
+			}
+			else hull.shift();
+		}
+		
+		return hull.slice(0,1000);
+
+		function isLeft(P0, P1, P2) {  // Return -1,0,1
+			    var ret = ( (P1.geometry.coordinates[0] - P0.geometry.coordinates[0]) * (P2.geometry.coordinates[1] - P0.geometry.coordinates[1])
+           - (P2.geometry.coordinates[0] - P0.geometry.coordinates[0]) * (P1.geometry.coordinates[1] - P0.geometry.coordinates[1]) );
+		   
+		   return ret;
+		}
+
+	}
+
+
+	// area2D_Polygon(): compute the area of a 2D polygon
+	//  Input:  int n = the number of vertices in the polygon
+	//          Point* V = an array of n+1 vertex points with V[n]=V[0]
+	//  Return: the (float) area of the polygon
+	
+	function polygonarea(points)
+	{
+		var n = points.length-1;
+		
+		var area = 0;
+		var  i, j, k;   // indices
+
+		if (n < 3) { return 0; } // a degenerate polygon
+
+		for (i=1, j=2, k=0; i<n; i++, j++, k++) {
+			area += points[i][0] * (points[j][1] - points[k][1]);
+		}
+		area += points[n][0] * (points[1][1] - points[n-1][1]);  // wrap-around term
+		return Math.round(Math.abs(area *100000/ 2.0));
+	}
+
+	
+	var  mcdapi = "https://www.mcdonalds.com/googleapps/GoogleRestaurantLocAction.do?method=searchLocation&country=us&language=en-us&webStatusShowClosed=false&showClosed=&hours24Text=Open%2024%20hr"
+
+	$().ready( function() {
+
+		$("#address").keyup(function() {
+			$("#main").text($("#address").val());
+		})
+
+		$("#address").change(function() {	
+			$("#log").addElement("<p>").text($("#address").val());
+		})
+
+
+		$("#go").on("click", function() {
+			var opts = {latitude: $("#latitude").val(), longitude:$("#longitude").val(), radius: $("#radius").val(), maxResults: $("#maxResults").val()};
+		
+			$.get(mcdapi, opts, function(data) {			
+				$("#log").text(JSON.stringify(data));
+			})
+		})
+		
+		$("#log").on("click", function(e){$(e.target).text('')});
+	})
+
+     require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/layers/FeatureLayer",
+        "esri/smartMapping/renderers/color",
+        "esri/smartMapping/statistics/histogram",
+        "esri/widgets/smartMapping/ColorSlider",
+        "esri/core/watchUtils"
+      ], function (
+		Map, MapView, FeatureLayer, colorRendererCreator, histogram, ColorSlider, watchUtils	
+      ) {
+
+
+      var map = new Map({
+        basemap: "gray-vector" //"topo-vector" "hybrid"
+      });
+      
+
+      var view = new MapView({
+        container: "viewDiv",
+        map: map,
+        center: [-94.5,38.8],
+        zoom: 4
+      });
+      
+      //*** Add div element to show coordinates ***//
+      var coordsWidget = document.createElement("div");
+      coordsWidget.id = "coordsWidget";
+      coordsWidget.className = "esri-widget esri-component";
+      coordsWidget.style.padding = "7px 15px 5px";
+      view.ui.add(coordsWidget, "bottom-right");
+
+		//*** Update lat, lon, zoom and scale ***//
+		function showCoordinates(pt) {
+		var coords = "Lat/Lon " + pt.latitude.toFixed(3) + " " + pt.longitude.toFixed(3) + 
+			" | Scale 1:" + Math.round(view.scale * 1) / 1 +
+			" | Zoom " + view.zoom;
+		coordsWidget.innerHTML = coords;
+		}
+      
+		mcdLocations.features.forEach((x)=> {
+			x.geometry.latitude = x.geometry.coordinates[1]; 
+			x.geometry.longitude = x.geometry.coordinates[0]
+			x.geometry.type = "point";
+			x.attributes = x.properties;
+			x.attributes.ObjectID = x.attributes.id;
+
+		})
+		
+		mcdLocations.features = mcdLocations.features.filter((x)=>(x.geometry.longitude > -125.535 && x.geometry.longitude < -66.473));
+				
+		var convexHull = getConvexHull(mcdLocations.features);
+		var voronoiShapes = generateVornoi(mcdLocations.features, convexHull);
+		
+		var temp;
+		voronoiShapes = voronoiShapes.map(x=> (
+			temp = x.data.attributes,
+
+			delete x.data,
+			x.push(x[0]),
+			temp.landsize = polygonarea(x),
+			
+			{ 	attributes: temp,
+				geometry: {
+					type: "polygon", // autocasts as new Polyline()
+					paths: x ,
+					rings: [x] ,
+			
+				symbol:  {
+					type: "simple-line",  // autocasts as SimpleLineSymbol()
+					color: [22, 119, 100],
+					width: 4
+				}}
+			})
+		);
+  
+		
+		var popupTemplate = {
+		// autocasts as new PopupTemplate()
+			title: "{ObjectID} {addressLine1} {addressLine3}",
+			content: [ 
+				{ 
+					type: "fields", 
+					fieldInfos: [ 
+						{ fieldName: "telephone", label: "Phone" },
+						{ fieldName: "restaurantUrl", label: "URL" }				
+					]
+				} 
+			]
+		}
+
+		const heatmaprenderer = {
+		  type: "heatmap",
+		  colorStops: [
+			{ color: "rgba(63, 40, 102, 0)", ratio: 0 },
+			{ color: "#472b77", ratio: 0.083 },
+			{ color: "#4e2d87", ratio: 0.166 },
+			{ color: "#563098", ratio: 0.249 },
+			{ color: "#5d32a8", ratio: 0.332 },
+			{ color: "#6735be", ratio: 0.415 },
+			{ color: "#7139d4", ratio: 0.498 },
+			{ color: "#7b3ce9", ratio: 0.581 },
+			{ color: "#853fff", ratio: 0.664 },
+			{ color: "#a46fbf", ratio: 0.747 },
+			{ color: "#c29f80", ratio: 0.83 },
+			{ color: "#e0cf40", ratio: 0.913 },
+			{ color: "#ffff00", ratio: 1 }
+		  ],
+		  maxPixelIntensity: 5000,
+		  minPixelIntensity: 0,
+		  blurRadius: 20
+		};
+
+		var layer = new FeatureLayer({
+			source: convexHull, //mcdLocations.features,  // autocast as a Collection of new Graphic()
+			objectIdField: "ObjectID",
+			popupTemplate: popupTemplate,
+			fields: [
+				{ 				name: "ObjectID", 				type: "oid" 			}, 
+				{ name: "addressLine1", type: "string"},
+				{ name: "addressLine3", type: "string"},
+				{ name: "telephone", type: "string"},
+				{ name: "restaurantUrl", type: "string"}
+			],
+			popupTemplate: popupTemplate
+			//renderer: renderer
+		});
+		//map.add(layer);
+		
+		layer = new FeatureLayer({
+			source: mcdLocations.features,  // autocast as a Collection of new Graphic()
+			objectIdField: "ObjectID",
+			popupTemplate: popupTemplate,
+			fields: [
+				{ name: "ObjectID", 				type: "oid" 			}, 
+				{ name: "addressLine1", type: "string"},
+				{ name: "addressLine3", type: "string"},
+				{ name: "telephone", type: "string"},
+				{ name: "restaurantUrl", type: "string"}
+			],
+			popupTemplate: popupTemplate
+			//renderer: renderer
+		});
+		map.add(layer);
+
+		layer = new FeatureLayer({
+			opacity: .5,
+			source: voronoiShapes,  // mcdLocations.features,  // autocast as a Collection of new Graphic()
+			geometryType: 'polygon',
+			objectIdField: "ObjectID",
+			//popupTemplate: popupTemplate,
+			fields: [
+				{ name: "ObjectID", 				type: "oid" 			}, 
+				{ name: "addressLine1", type: "string"},
+				{ name: "addressLine3", type: "string"},
+				{ name: "telephone", type: "string"},
+				{ name: "restaurantUrl", type: "string"},
+				{ name: "landsize", type: "integer"}
+			],  
+			popupTemplate: {
+		// autocasts as new PopupTemplate()
+				title: "{ObjectID} {landsize} {addressLine3}",
+				content: [ 
+					{ 
+						type: "fields", 
+						fieldInfos: [ 
+							{ fieldName: "telephone", label: "Phone" },
+							{ fieldName: "restaurantUrl", label: "URL" }				
+						]
+					} 
+				]
+			},
+			renderer: {
+				type: "simple",  // autocasts as new SimpleRenderer()
+				symbol: {
+					type: "simple-fill",  // autocasts as new SimpleFillSymbol()
+					<!-- color: [ 50, 128, 100, 0.25 ], -->
+					outline: {  // autocasts as new SimpleLineSymbol()
+					  width: .5,
+					  color: [ 40,40, 100 ]
+					}
+				},
+				label: "McDonalds Restaurant Regions",
+				visualVariables: [
+					{
+					  type: "color",
+
+					  field: "landsize",
+					  <!-- normalizationField: "TOTPOP_CY", -->
+					  legendOptions: {
+						title: "# of competitors"
+					  },
+					  stops: [
+						 { value: 125, color: "#FF0000", label: "<5" },
+						 { value: 233, color: "#FFFF00", label: "<5" },
+						 { value: 1453, color: "#00FF00", label: "<5" },
+						 { value: 4154, color: "#00FFFF", label: "<5" },
+						 { value: 11962, color: "#0000FF", label: "<5" },
+						 { value: 50000, color: "#FF00FF", label: "<5" },
+
+
+					  ]
+					}
+				]
+			},
+
+		});
+		map.add(layer);
+		
+        <!-- watchUtils.whenFalseOnce(view, "updating", generateRenderer); -->
+
+        function generateRenderer() {
+          // configure parameters for the color renderer generator
+          // the layer must be specified along with a field name
+          // or arcade expression. The view and other properties determine
+          // the appropriate default color scheme.
+
+          const colorParams = {
+            layer: layer,
+            field: "landsize",
+            view: view,
+            theme: "high-to-low",
+            outlineOptimizationEnabled: true
+          };
+
+          // Generate a continuous color renderer based on the
+          // statistics of the data in the provided layer
+          // and field normalized by the normalizationField.
+          //
+          // This resolves to an object containing several helpful
+          // properties, including color scheme, statistics,
+          // the renderer and visual variable
+
+          let rendererResult;
+
+          colorRendererCreator
+            .createContinuousRenderer(colorParams)
+            .then(function (response) {
+              // set the renderer to the layer and add it to the map
+              rendererResult = response;
+              layer.renderer = rendererResult.renderer;
+
+              if (!map.layers.includes(layer)) {
+                map.add(layer);
+              }
+
+              // generate a histogram for use in the slider. Input the layer
+              // and field or arcade expression to generate it.
+
+              return histogram({
+                layer: layer,
+                field: colorParams.field,
+                view: view,
+                numBins: 10,
+				classificationMethod: "quantile",
+				maxValue: 500000
+              });
+            })
+            .then(function (histogramResult) {
+              // Construct a color slider from the result of both
+              // smart mapping renderer and histogram methods
+              const colorSlider = ColorSlider.fromRendererResult(
+                rendererResult,
+                histogramResult
+              );
+              colorSlider.container = "slider";
+              colorSlider.primaryHandleEnabled = true;
+              // Round labels to 1 decimal place
+              colorSlider.labelFormatFunction = function (value, type) {
+                return value.toFixed(1);
+              };
+              // styles the standard deviation lines to be shorter
+              // than the average line
+              colorSlider.histogramConfig.dataLineCreatedFunction = function (
+                lineElement,
+                labelElement,
+                index
+              ) {
+                if (index != null) {
+                  lineElement.setAttribute("x2", "66%");
+                  const sign = index === 0 ? "-" : "+";
+                  labelElement.innerHTML = sign + "σ";
+                }
+              };
+              colorSlider.viewModel.precision = 1;
+              view.ui.add("containerDiv", "bottom-left");
+
+              // when the user slides the handle(s), update the renderer
+              // with the updated color visual variable object
+
+              function changeEventHandler() {
+                const renderer = layer.renderer.clone();
+                const colorVariable = renderer.visualVariables[0].clone();
+                const outlineVariable = renderer.visualVariables[1];
+                colorVariable.stops = colorSlider.stops;
+                renderer.visualVariables = [colorVariable, outlineVariable];
+                layer.renderer = renderer;
+              }
+
+              colorSlider.on(
+                ["thumb-change", "thumb-drag", "min-change", "max-change"],
+                changeEventHandler
+              );
+            })
+            .catch(function (error) {
+              console.log("there was an error: ", error);
+            });
+        }
+
+
+
+      //*** Add event and show center coordinates after the view is finished moving e.g. zoom, pan ***//
+      view.watch(["stationary"], function() {
+        showCoordinates(view.center);
+      });
+
+      //*** Add event to show mouse coordinates on click and move ***//
+      view.on(["pointer-down","pointer-move"], function(evt) {
+        showCoordinates(view.toMap({ x: evt.x, y: evt.y }));
+      });
+      
+	var pts = [];
+	view.on(["pointer-down"], function(evt) {
+        var pt = view.toMap({ x: evt.x, y: evt.y });
+		pts.push([pt.longitude, pt.latitude]);
+		console.log(JSON.stringify(pts));
+	})
+
+      view.on(["pointer-down-NOTUSED"], function(evt) {
+        var pt = view.toMap({ x: evt.x, y: evt.y });
+		$("#latitude").val(pt.latitude);
+		$("#longitude").val(pt.longitude);
+		//$("#log").text(JSON.stringify(view.toMap({ x: evt.x, y: evt.y })));
+
+		var opts = {latitude: $("#latitude").val(), longitude:$("#longitude").val(), radius: $("#radius").val(), maxResults: $("#maxResults").val()};
+	
+		$.get(mcdapi, opts, function(data) {
+
+			
+			data.features.forEach((x)=> {
+				x.geometry.latitude = x.geometry.coordinates[1]; 
+				x.geometry.longitude = x.geometry.coordinates[0]
+				x.geometry.type = "point";
+				x.attributes = x.properties;
+				x.attributes.ObjectID = x.attributes.identifiers.gblnumber;
+
+			})
+
+			$("#log").text(JSON.stringify(data.features[0]?data.features[0].geometry:'none'));
+			
+
+				// geometryType and spatialReference of the layer
+				// will be inferred from the first feature in the array
+				// if it has a geometry.
+
+		})
+
+
+      });
+
+
+      
+    });
+  </script>
+
+
+
+</head>
+<body>
+
+<div id=log></div>
+        <div id="map"></div>
+        
+  <div id="viewDiv"></div>
+    <div id="containerDiv" class="esri-widget">
+      <span id="title" class="esri-widget">% population in poverty</span>
+      <div id="slider"></div>
+    </div>
+
+<input type=text id="address"></input>
+<input type=text id="latitude" value=40.7127753></input>
+<input type=text id="longitude" value=-74.0059728></input>
+<input type=text id="radius" value=8.045></input>
+<input type=text id="maxResults" value=30></input>
+
+<p id=go>Go</p>
+<p id=main></p>
+<p id=raw></p>
+
+</body>
+</html>
